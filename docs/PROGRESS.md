@@ -18,7 +18,8 @@
 | M7 | QA (lint, typecheck, test, uji HP) | 🔨 | lint/typecheck/test/build hijau; uji browser nunggu DB |
 | M8 | Deploy Vercel + koneksi Postgres VPS | ⛔ | butuh `DATABASE_URL` |
 | M9 | Sektor berikutnya (ekstensi) | 🔲 | v2 |
-| M10 | Dev stack Docker lokal (db+app) | 🔨 | compose+Dockerfile siap; uji nunggu Docker Desktop |
+| M10 | Dev stack Docker lokal (db saja) | ✅ | compose Postgres jalan; app jalan di mesin (`npm run dev`) |
+| M11 | Manajemen kamar (Room) | ✅ | tabel Room + `/kamar` + dropdown anggota; migrasi/backfill/seed |
 
 ## Checklist per Milestone
 
@@ -106,4 +107,8 @@
 | 2026-09-20 | M1 scaffold, M3 auth (guard layout), M5 routers, M6 UI — code done, build hijau (M2 & M7-browser butuh DB); M4 test done |
 | 2026-09-20 | M7 QA: lint + typecheck + test + build semua hijau (manual browser nunggu DB) |
 | 2026-09-20 | Dev stack Docker: `compose.yaml` + `Dockerfile` + `.dockerignore` (Postgres + app, HMR polling; uji nunggu Docker Desktop) |
+| 2026-09-21 | Docker dipangkas: frontend ditarik dari container (hapus `app` service, Dockerfile, .dockerignore, image `piket-app`), `compose.yaml` hanya Postgres; app jalan di mesin |
 | 2026-09-20 | M2 tuntas di Docker: `migrate dev` + seed 6 anggota (pajol, fajrial, aceng, fariel, latief, reyhan) ke org superadmin — `@piket.local`, sandi sementara `piket123`, wajib ganti; M7 browser tinggal nunggu `DATABASE_URL` VPS |
+| 2026-09-21 | UI polish: modal jadi bottom-sheet benar (fix `flex` Preline), semua emoji & karakter ikon ASCII (✓✕↑↓) diganti Tabler icons (IconBed/Brush/Dice/Home/Pencil/Trash/Key/ShieldLock/ChevronDown/Sun/Sunrise/Sunset/dll); tombol anggota compact di mobile (ikon-only, label `sm:`); reminder window pagi/siang/sore (banner CSR, tanpa cron) |
+| 2026-09-21 | SSR halaman dihilangkan: layout `(app)`, `/login`, `/register`, `/ubah-password` jadi client component (guard pakai `useSession` + `useQuery me`); semua route jadi ○ Static, query DB/auth cuma via tRPC di server |
+| 2026-09-21 | Manajemen kamar: `Membership.kamar` (string bebas) → tabel `Room` + relasi `roomId` (migrasi + backfill data lama); router `room` (list/create/updateName/remove), halaman `/kamar` (superadmin), navbar link, form anggota pakai dropdown kamar, seed kamar 2A/2B/3A/3B; hapus kamar → anggota terlepas (SetNull) |

@@ -21,8 +21,8 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="id" className={`${jakarta.variable}`}>
-      <body>
+    <html lang="id" data-theme="theme-piket" className={`${jakarta.variable}`}>
+      <body className="font-custom-default">
         <Providers>
           <PrelineInit />
           {children}

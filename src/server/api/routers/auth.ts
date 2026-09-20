@@ -85,7 +85,7 @@ export const authRouter = createTRPCRouter({
       z.object({
         name: z.string().min(1, "Nama wajib diisi.").max(80),
         email: z.string().email("Format email kurang pas."),
-        kamar: z.string().max(60).optional(),
+        roomId: z.string().min(1).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -101,6 +101,18 @@ export const authRouter = createTRPCRouter({
       const tempPassword = randomTempPassword();
       const passwordHash = await bcrypt.hash(tempPassword, SALT_ROUNDS);
 
+      if (input.roomId) {
+        const room = await ctx.db.room.findFirst({
+          where: { id: input.roomId, orgId: ctx.orgId },
+        });
+        if (!room) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Kamar yang dipilih nggak ada.",
+          });
+        }
+      }
+
       await ctx.db.$transaction(async (tx) => {
         const user = await tx.user.create({
           data: {
@@ -113,7 +125,7 @@ export const authRouter = createTRPCRouter({
         await tx.membership.create({
           data: {
             role: Role.MEMBER,
-            kamar: input.kamar?.trim() ?? null,
+            roomId: input.roomId ?? null,
             userId: user.id,
             orgId: ctx.orgId,
           },

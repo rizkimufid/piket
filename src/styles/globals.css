@@ -2,24 +2,13 @@
 
 @source "../../node_modules/preline/dist/*.js";
 @import "../../node_modules/preline/variants.css";
+@import "../../node_modules/preline/css/themes/theme.css";
+@import "./themes/piket.css";
 @plugin "@tailwindcss/forms";
 
 @theme {
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-
-  --color-brand-50: #eefaf0;
-  --color-brand-100: #d6f2dd;
-  --color-brand-200: #ade4bd;
-  --color-brand-300: #77cf92;
-  --color-brand-400: #3fb968;
-  --color-brand-500: #00aa13;
-  --color-brand-600: #008f10;
-  --color-brand-700: #00720d;
-  --color-brand-800: #055b12;
-  --color-brand-900: #0a4a12;
-
-  --color-surface: #f4f8f3;
 }
 
 @layer base {
@@ -27,8 +16,8 @@
     scroll-behavior: smooth;
   }
   body {
-    background-color: var(--color-surface);
-    color: #1f2937;
+    background-color: var(--color-background-1);
+    color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }

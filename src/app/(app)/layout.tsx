@@ -1,23 +1,42 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 import { DashboardShell } from "~/app/_components/dashboard-shell";
-import { auth } from "~/server/auth";
-import { db } from "~/server/db";
+import { Spinner } from "~/app/_components/ui";
+import { api } from "~/trpc/react";
 
-export default async function AppLayout({
+export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
-
-  // Cek kekinian dari DB (jangan andalkan JWT yang bisa basi setelah ganti sandi).
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { mustChangePassword: true },
+  const router = useRouter();
+  const { status } = useSession();
+  const me = api.user.me.useQuery(undefined, {
+    enabled: status === "authenticated",
   });
-  if (user?.mustChangePassword) redirect("/ubah-password");
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/login");
+      return;
+    }
+    // Cek kekinian dari server (jangan andalkan JWT yang bisa basi setelah ganti sandi).
+    if (status === "authenticated" && me.data?.user?.mustChangePassword) {
+      router.replace("/ubah-password");
+    }
+  }, [status, me.data, router]);
+
+  if (status === "loading" || status === "unauthenticated") {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Spinner />
+      </div>
+    );
+  }
 
   return <DashboardShell>{children}</DashboardShell>;
 }

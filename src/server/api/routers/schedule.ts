@@ -15,7 +15,10 @@ export const scheduleRouter = createTRPCRouter({
     const [memberships, tasks, setting] = await Promise.all([
       ctx.db.membership.findMany({
         where: { orgId: ctx.orgId, isActive: true },
-        include: { user: { select: { id: true, name: true } } },
+        include: {
+          user: { select: { id: true, name: true } },
+          room: { select: { name: true } },
+        },
         orderBy: { createdAt: "asc" },
       }),
       ctx.db.task.findMany({
@@ -38,7 +41,9 @@ export const scheduleRouter = createTRPCRouter({
     const memberName = new Map(
       memberships.map((m) => [m.user.id, m.user.name]),
     );
-    const memberKamar = new Map(memberships.map((m) => [m.user.id, m.kamar]));
+    const memberKamar = new Map(
+      memberships.map((m) => [m.user.id, m.room?.name ?? null]),
+    );
     const taskName = new Map(tasks.map((t) => [t.id, t.name]));
 
     const render = (w: number) => {

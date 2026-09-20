@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
+import { env } from "~/env";
 import { db } from "~/server/db";
 
 /**
@@ -28,6 +29,7 @@ const credentialsSchema = z.object({
  * tidak pakai adapter/tabel sesi. Spesifikasi: docs/PRD.md §5.
  */
 export const authConfig = {
+  secret: env.AUTH_SECRET,
   session: { strategy: "jwt" },
   callbacks: {
     jwt: ({ token, user }) => {

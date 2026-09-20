@@ -9,7 +9,10 @@ export const memberRouter = createTRPCRouter({
   list: orgProcedure.query(async ({ ctx }) => {
     return ctx.db.membership.findMany({
       where: { orgId: ctx.orgId },
-      include: { user: { select: { id: true, name: true, email: true } } },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        room: { select: { id: true, name: true } },
+      },
       orderBy: { createdAt: "asc" },
     });
   }),
@@ -19,7 +22,7 @@ export const memberRouter = createTRPCRouter({
       z.object({
         membershipId: z.string().min(1),
         name: z.string().min(1).max(80).optional(),
-        kamar: z.string().max(60).optional(),
+        roomId: z.string().min(1).nullable().optional(),
         isActive: z.boolean().optional(),
       }),
     )
@@ -35,9 +38,21 @@ export const memberRouter = createTRPCRouter({
       }
 
       const data = {
-        kamar: input.kamar?.trim() ?? null,
+        roomId: input.roomId ?? null,
         isActive: input.isActive,
       };
+
+      if (input.roomId) {
+        const room = await ctx.db.room.findFirst({
+          where: { id: input.roomId, orgId: ctx.orgId },
+        });
+        if (!room) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Kamar yang dipilih nggak ada.",
+          });
+        }
+      }
 
       await ctx.db.$transaction(async (tx) => {
         if (input.name) {
@@ -48,7 +63,7 @@ export const memberRouter = createTRPCRouter({
         }
         await tx.membership.update({
           where: { id: membership.id },
-          data: { kamar: data.kamar, isActive: data.isActive },
+          data: { roomId: data.roomId, isActive: data.isActive },
         });
       });
 

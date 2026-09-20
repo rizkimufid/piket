@@ -7,7 +7,7 @@ import { useState } from "react";
 
 import { Button, Field, inputClass } from "~/app/_components/ui";
 
-export function LoginForm({ canRegister }: { canRegister: boolean }) {
+export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -73,17 +73,15 @@ export function LoginForm({ canRegister }: { canRegister: boolean }) {
         {loading ? "Masuk..." : "Masuk, gas!"}
       </Button>
 
-      {canRegister && (
-        <p className="pt-2 text-center text-sm text-gray-500">
-          Baru mulai?{" "}
-          <Link
-            href="/register"
-            className="text-brand-700 font-semibold underline-offset-4 hover:underline"
-          >
-            Daftar sebagai pengelola
-          </Link>
-        </p>
-      )}
+      <p className="pt-2 text-center text-sm text-muted-foreground">
+        Baru mulai?{" "}
+        <Link
+          href="/register"
+          className="text-primary-700 font-semibold underline-offset-4 hover:underline"
+        >
+          Daftar sebagai pengelola
+        </Link>
+      </p>
     </form>
   );
 }

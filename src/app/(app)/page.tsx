@@ -1,14 +1,26 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useEffect } from "react";
+import {
+  IconBed,
+  IconBrush,
+  IconChevronDown,
+  IconDice,
+  IconHome,
+  IconSun,
+  IconSunrise,
+  IconSunset,
+} from "@tabler/icons-react";
 
 import {
   Button,
   Chip,
+  closeModal,
   errMsg,
   Modal,
+  refreshOverlays,
   Spinner,
   Toast,
   useToast,
@@ -24,6 +36,28 @@ type ScheduleItem = {
   kamar: string | null;
 };
 
+const WINDOWS = [
+  { label: "Pagi", from: 6, to: 11, icon: () => <IconSunrise size={18} /> },
+  { label: "Siang", from: 11, to: 15, icon: () => <IconSun size={18} /> },
+  { label: "Sore", from: 15, to: 19, icon: () => <IconSunset size={18} /> },
+] as const;
+
+function ReminderBanner() {
+  const h = new Date().getHours();
+  const window_ = WINDOWS.find((w) => h >= w.from && h < w.to);
+  if (!window_) return null;
+
+  return (
+    <div className="border-primary-200 bg-primary-50 text-primary-800 flex items-center gap-3 rounded-3xl border px-4 py-3 text-sm font-medium">
+      <span aria-hidden="true">{window_.icon()}</span>
+      <p>
+        Window {window_.label} — cek jadwal piket minggu ini biar nggak
+        kelupaan, ya!
+      </p>
+    </div>
+  );
+}
+
 function WeekCard({
   weekStart,
   items,
@@ -38,11 +72,11 @@ function WeekCard({
   const weekEnd = weekStart + 7 * DAY_MS - 1;
 
   return (
-    <section className="rounded-3xl border border-gray-200/70 bg-white p-4 shadow-sm sm:p-6">
+    <section className="border-border bg-card rounded-3xl border p-4 shadow-sm sm:p-6">
       <div className="mb-4 flex items-center justify-between gap-2">
-        <p className="text-sm font-bold text-gray-900">
+        <p className="text-sm font-bold text-foreground">
           {variant === "this" ? "Minggu ini" : "Minggu depan"}
-          <span className="mt-0.5 block text-xs font-medium text-gray-400">
+          <span className="text-muted-foreground mt-0.5 block text-xs font-medium">
             {formatLongDate(weekStart)} – {formatLongDate(weekEnd)}
           </span>
         </p>
@@ -56,21 +90,23 @@ function WeekCard({
             <li
               key={item.taskId}
               className={`flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 transition ${
-                mine ? "bg-brand-50 ring-brand-200 ring-1" : "hover:bg-gray-50"
+                mine
+                  ? "bg-primary-50 ring-primary-200 ring-1"
+                  : "hover:bg-muted-hover"
               }`}
             >
               <span className="flex min-w-0 items-center gap-3">
                 <span
                   className={`flex size-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
                     mine
-                      ? "bg-brand-100 text-brand-700"
-                      : "bg-gray-100 text-gray-500"
+                      ? "bg-primary-100 text-primary-700"
+                      : "bg-muted text-muted-foreground"
                   }`}
                   aria-hidden="true"
                 >
                   {i + 1}
                 </span>
-                <span className="truncate text-sm font-semibold text-gray-800">
+                <span className="truncate text-sm font-semibold text-foreground">
                   {item.taskName}
                 </span>
               </span>
@@ -78,16 +114,16 @@ function WeekCard({
               <span className="flex shrink-0 items-center gap-2 text-sm">
                 {mine && <Chip tone="brand">kamu</Chip>}
                 {item.memberName ? (
-                  <span className="truncate font-bold text-gray-800">
+                  <span className="truncate font-bold text-foreground">
                     {item.memberName}
                     {item.kamar ? (
-                      <span className="ml-1 font-medium text-gray-400">
+                      <span className="text-muted-foreground ml-1 font-medium">
                         · {item.kamar}
                       </span>
                     ) : null}
                   </span>
                 ) : (
-                  <span className="whitespace-nowrap text-gray-400">
+                  <span className="text-muted-foreground whitespace-nowrap">
                     belum ada
                   </span>
                 )}
@@ -107,7 +143,10 @@ export default function DashboardPage() {
   const regenerate = api.org.regenerateSeed.useMutation();
   const utils = api.useUtils();
   const { toast, setToast } = useToast();
-  const [askReset, setAskReset] = useState(false);
+
+  useEffect(() => {
+    if (schedule.data) refreshOverlays();
+  }, [schedule.data]);
 
   if (me.isLoading || schedule.isLoading) {
     return (
@@ -133,15 +172,15 @@ export default function DashboardPage() {
 
   if (!memberships.length) {
     return (
-      <div className="rounded-3xl border border-gray-200/70 bg-white p-8 text-center">
-        <p
-          className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-gray-100 text-xl"
-          aria-hidden="true"
-        >
-          🏠
-        </p>
-        <h1 className="text-xl font-bold text-gray-800">Halo {userName}!</h1>
-        <p className="mt-2 text-sm text-gray-500">
+      <div className="border-border bg-card rounded-3xl border p-8 text-center">
+          <p
+            className="bg-muted text-muted-foreground mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl text-xl"
+            aria-hidden="true"
+          >
+            <IconHome size={24} stroke={1.75} />
+          </p>
+        <h1 className="text-xl font-bold text-foreground">Halo {userName}!</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           Kamu belum tergabung di org mana pun. Minta superadmin (pengelola)
           kamu buat daftarin kamu, ya.
         </p>
@@ -155,46 +194,48 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-brand-700 mb-1 inline-flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase">
+          <p className="text-primary-700 mb-1 inline-flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase">
             <span
-              className="bg-brand-500 flex size-2 rounded-full"
+              className="bg-primary-500 flex size-2 rounded-full"
               aria-hidden="true"
             />
             {activeOrgName}
           </p>
-          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
-            Halo, {userName}! 👋
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+              Halo, {userName}!
+            </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Piket minggu ini gini nih.
           </p>
         </div>
 
         {isSuperadmin && data?.taskCount ? (
-          <Button kind="ghost" onClick={() => setAskReset(true)}>
-            🎲 Acak ulang jadwal
+          <Button kind="ghost" data-hs-overlay="#modal-reset">
+            <IconDice size={18} aria-hidden="true" />
+            Acak ulang jadwal
           </Button>
         ) : null}
       </div>
 
       {data && data.memberCount > 0 && data.taskCount > 0 ? (
         <>
+          <ReminderBanner />
           <WeekCard
             weekStart={data.thisWeek.weekStart}
             items={data.thisWeek.items}
             myId={myId}
           />
 
-          <details className="group rounded-3xl border border-gray-200/70 bg-white shadow-sm">
+          <details className="border-border bg-card rounded-3xl border shadow-sm">
             <summary className="flex cursor-pointer list-none items-center justify-between rounded-3xl px-4 py-4 sm:px-6">
-              <span className="text-sm font-bold text-gray-900">
+              <span className="text-sm font-bold text-foreground">
                 Preview minggu depan
               </span>
               <span
                 aria-hidden="true"
-                className="flex size-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition group-open:rotate-180"
+                className="bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-full transition group-open:rotate-180"
               >
-                ▾
+                <IconChevronDown size={20} stroke={2} />
               </span>
             </summary>
             <div className="px-4 pb-4 sm:px-6">
@@ -208,19 +249,23 @@ export default function DashboardPage() {
           </details>
         </>
       ) : (
-        <div className="rounded-3xl border border-gray-200/70 bg-white p-8 text-center shadow-sm">
+        <div className="border-border bg-card rounded-3xl border p-8 text-center shadow-sm">
           <p
-            className="bg-brand-100 mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl text-xl"
+            className="bg-primary-100 mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl text-xl"
             aria-hidden="true"
           >
-            {data?.memberCount === 0 ? "🛌" : "🧹"}
+            {data?.memberCount === 0 ? (
+              <IconBed size={24} stroke={1.75} aria-hidden="true" />
+            ) : (
+              <IconBrush size={24} stroke={1.75} aria-hidden="true" />
+            )}
           </p>
-          <h2 className="text-lg font-bold text-gray-800">
+          <h2 className="text-lg font-bold text-foreground">
             {data?.memberCount === 0
               ? "Belum ada penghuni nih."
               : "Belum ada tugas piket."}
           </h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
             {isSuperadmin
               ? "Isi dulu anggota & tugasnya lewat menu Anggota dan Task biar jadwalnya jalan."
               : "Minta superadmin nambahin anggota & tugas dulu, ya."}
@@ -240,17 +285,13 @@ export default function DashboardPage() {
 
       <Toast toast={toast} />
 
-      <Modal
-        open={askReset}
-        onClose={() => setAskReset(false)}
-        title="Acak ulang jadwal?"
-      >
-        <p className="text-sm text-gray-600">
+      <Modal id="modal-reset" title="Acak ulang jadwal?">
+        <p className="text-sm text-muted-foreground">
           Urutan piket bakal diacak dari awal. Fair tetap jalan kok — hasil baru
           berlaku mulai minggu ini.
         </p>
         <div className="mt-5 flex justify-end gap-2">
-          <Button kind="ghost" onClick={() => setAskReset(false)}>
+          <Button kind="ghost" data-hs-overlay="#modal-reset">
             Batal
           </Button>
           <Button
@@ -258,7 +299,7 @@ export default function DashboardPage() {
             onClick={() =>
               regenerate.mutate(undefined, {
                 onSuccess: () => {
-                  setAskReset(false);
+                  closeModal("modal-reset");
                   void utils.schedule.current.invalidate();
                   setToast({ message: "Jadwal udah diacak ulang. Gas!" });
                 },

@@ -1,5 +1,7 @@
 "use client";
 
+import { IconShieldLock } from "@tabler/icons-react";
+
 import { Spinner } from "~/app/_components/ui";
 import { api } from "~/trpc/react";
 
@@ -33,17 +35,17 @@ export function SuperadminGate({ children }: { children: React.ReactNode }) {
 
   if (!isSuperadmin) {
     return (
-      <div className="rounded-3xl border border-gray-200/70 bg-white p-8 text-center shadow-sm">
+      <div className="border-border bg-card rounded-3xl border p-8 text-center shadow-sm">
         <p
-          className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-gray-100 text-xl"
+          className="bg-muted text-muted-foreground mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl text-xl"
           aria-hidden="true"
         >
-          🔒
+          <IconShieldLock size={26} stroke={1.75} />
         </p>
-        <h1 className="text-lg font-bold text-gray-800">
+        <h1 className="text-lg font-bold text-foreground">
           Khusus superadmin nih
         </h1>
-        <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">
+        <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
           Kamu bisa lihat jadwal di Beranda. Kelola anggota & task butuh akses
           superadmin.
         </p>

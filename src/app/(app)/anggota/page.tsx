@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { IconBed, IconKey, IconPencil, IconTrash } from "@tabler/icons-react";
 
 import {
   SuperadminGate,
@@ -9,11 +10,14 @@ import {
 import {
   Button,
   Chip,
+  closeModal,
   errMsg,
   Field,
   inputClass,
   Modal,
+  openModal,
   PageHeader,
+  refreshOverlays,
   Spinner,
   Toast,
   useToast,
@@ -24,14 +28,14 @@ type TempPassword = { title: string; email: string; tempPassword: string };
 
 function ResetCard({ data }: { data: TempPassword }) {
   return (
-    <div className="border-brand-200 bg-brand-50 rounded-2xl border p-4 text-center">
-      <p className="text-sm text-gray-700">
+    <div className="border-primary-200 bg-primary-50 rounded-2xl border p-4 text-center">
+      <p className="text-sm text-foreground">
         {data.title} untuk <strong>{data.email}</strong>:
       </p>
-      <p className="text-brand-700 mt-2 rounded-xl bg-white px-3 py-2 font-mono text-2xl font-bold tracking-widest select-all">
+      <p className="text-primary-700 mt-2 rounded-xl bg-card px-3 py-2 font-mono text-2xl font-bold tracking-widest select-all">
         {data.tempPassword}
       </p>
-      <p className="mt-2 text-xs text-gray-500">
+      <p className="mt-2 text-xs text-muted-foreground">
         Salin terus kasih ke yang bersangkutan. Pas masuk, mereka bakal dipaksa
         ganti sandi.
       </p>
@@ -41,7 +45,7 @@ function ResetCard({ data }: { data: TempPassword }) {
 
 function Avatar({ name }: { name: string }) {
   return (
-    <span className="bg-brand-100 text-brand-700 flex size-10 shrink-0 items-center justify-center rounded-2xl text-sm font-bold">
+    <span className="bg-primary-100 text-primary-700 flex size-10 shrink-0 items-center justify-center rounded-2xl text-sm font-bold">
       {name.charAt(0).toUpperCase()}
     </span>
   );
@@ -49,6 +53,7 @@ function Avatar({ name }: { name: string }) {
 
 function MembersPage() {
   const list = api.member.list.useQuery();
+  const rooms = api.room.list.useQuery();
   const create = api.auth.createMember.useMutation();
   const update = api.member.update.useMutation();
   const remove = api.member.remove.useMutation();
@@ -56,14 +61,17 @@ function MembersPage() {
   const utils = api.useUtils();
 
   const { toast, setToast } = useToast();
-  const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState<string | null>(null);
   const [removeId, setRemoveId] = useState<string | null>(null);
   const [temp, setTemp] = useState<TempPassword | null>(null);
 
+  useEffect(() => {
+    if (list.data || rooms.data) refreshOverlays();
+  }, [list.data, rooms.data]);
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [kamar, setKamar] = useState("");
+  const [roomId, setRoomId] = useState("");
 
   function refresh() {
     void utils.member.list.invalidate();
@@ -79,17 +87,18 @@ function MembersPage() {
       const res = await create.mutateAsync({
         name,
         email,
-        kamar: kamar || undefined,
+        roomId: roomId || undefined,
       });
       setTemp({
         title: "Sandi sementara",
         email: res.email,
         tempPassword: res.tempPassword,
       });
-      setAddOpen(false);
+      closeModal("modal-member-add");
+      openModal("modal-member-temp");
       setName("");
       setEmail("");
-      setKamar("");
+      setRoomId("");
       refresh();
     } catch (err) {
       setToast({
@@ -107,7 +116,7 @@ function MembersPage() {
         title="Anggota"
         subtitle={`${members.length} orang · ${members.filter((m) => m.isActive).length} ikut piket`}
         action={
-          <Button type="button" onClick={() => setAddOpen(true)}>
+          <Button type="button" data-hs-overlay="#modal-member-add">
             + Tambah
           </Button>
         }
@@ -118,14 +127,14 @@ function MembersPage() {
           <Spinner />
         </div>
       ) : members.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-center">
+        <div className="rounded-3xl border border-dashed border-line-3 bg-card p-8 text-center">
           <p
-            className="bg-brand-100 mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl text-xl"
+            className="bg-primary-100 mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl text-xl"
             aria-hidden="true"
           >
-            🛌
+            <IconBed size={26} stroke={1.75} />
           </p>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Masih kosong nih. Tambahin penghuni pertama biar piketnya jalan.
           </p>
         </div>
@@ -134,61 +143,71 @@ function MembersPage() {
           {members.map((m) => (
             <li
               key={m.id}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200/70 bg-white px-3 py-3 shadow-sm sm:px-4"
+              className="border-border bg-card flex items-center justify-between gap-3 rounded-2xl border px-3 py-3 shadow-sm sm:px-4"
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <Avatar name={m.user.name} />
                 <div className="min-w-0">
-                  <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-bold text-gray-800">
+                  <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-bold text-foreground">
                     <span className="truncate">{m.user.name}</span>
                     {m.role === "SUPERADMIN" && (
                       <Chip tone="brand">superadmin</Chip>
                     )}
                     {!m.isActive && <Chip tone="neutral">libur</Chip>}
                   </p>
-                  <p className="truncate text-xs text-gray-400">
+                  <p className="truncate text-xs text-muted-foreground">
                     {m.user.email}
-                    {m.kamar ? ` · kamar ${m.kamar}` : ""}
+                    {m.room ? ` · kamar ${m.room.name}` : ""}
                   </p>
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <Button
                   kind="ghost"
-                  className="px-2.5 py-1.5 text-xs"
+                  className="px-2 py-1.5 sm:px-2.5 sm:text-xs"
                   onClick={() => setEditOpen(m.id)}
+                  data-hs-overlay="#modal-member-edit"
+                  aria-label={`Edit ${m.user.name}`}
                 >
-                  Edit
+                  <IconPencil size={16} className="sm:mr-1" aria-hidden="true" />
+                  <span className="hidden sm:inline">Edit</span>
                 </Button>
                 <Button
                   kind="ghost"
-                  className="px-2.5 py-1.5 text-xs"
+                  className="px-2 py-1.5 sm:px-2.5 sm:text-xs"
                   onClick={() =>
                     reset.mutate(
                       { membershipId: m.id },
                       {
-                        onSuccess: (res) =>
+                        onSuccess: (res) => {
                           setTemp({
                             title: "Sandi baru",
                             email: res.email,
                             tempPassword: res.tempPassword,
-                          }),
+                          });
+                          openModal("modal-member-temp");
+                        },
                         onError: (err) =>
                           setToast({ message: err.message, kind: "error" }),
                       },
                     )
                   }
                   disabled={m.role === "SUPERADMIN"}
+                  aria-label={`Reset sandi ${m.user.name}`}
                 >
-                  Reset
+                  <IconKey size={16} className="sm:mr-1" aria-hidden="true" />
+                  <span className="hidden sm:inline">Reset</span>
                 </Button>
                 <Button
                   kind="ghost"
-                  className="px-2.5 py-1.5 text-xs text-red-600 hover:border-red-200 hover:bg-red-50"
+                  className="px-2 py-1.5 text-red-600 hover:border-red-200 hover:bg-red-50 sm:px-2.5 sm:text-xs"
                   onClick={() => setRemoveId(m.id)}
+                  data-hs-overlay="#modal-member-remove"
                   disabled={m.role === "SUPERADMIN"}
+                  aria-label={`Hapus ${m.user.name}`}
                 >
-                  Hapus
+                  <IconTrash size={16} className="sm:mr-1" aria-hidden="true" />
+                  <span className="hidden sm:inline">Hapus</span>
                 </Button>
               </div>
             </li>
@@ -198,11 +217,7 @@ function MembersPage() {
 
       <Toast toast={toast} />
 
-      <Modal
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        title="Tambah anggota"
-      >
+      <Modal id="modal-member-add" title="Tambah anggota">
         <form onSubmit={onSubmitAdd} className="space-y-4">
           <Field label="Nama">
             <input
@@ -224,12 +239,18 @@ function MembersPage() {
             />
           </Field>
           <Field label="Kamar (opsional)">
-            <input
+            <select
               className={inputClass}
-              value={kamar}
-              onChange={(e) => setKamar(e.target.value)}
-              placeholder="Misal: 2B"
-            />
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value)}
+            >
+              <option value="">Nggak usah dulu</option>
+              {rooms.data?.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
           </Field>
           <Button type="submit" className="w-full" disabled={create.isPending}>
             {create.isPending ? "Menyimpan..." : "Tambahkan"}
@@ -237,25 +258,22 @@ function MembersPage() {
         </form>
       </Modal>
 
-      <Modal
-        open={!!editing}
-        onClose={() => setEditOpen(null)}
-        title={`Edit ${editing?.user.name ?? ""}`}
-      >
+      <Modal id="modal-member-edit" title={`Edit ${editing?.user.name ?? ""}`}>
         {editing && (
           <EditMemberForm
             key={editing.id}
             initialName={editing.user.name}
-            initialKamar={editing.kamar ?? ""}
+            initialRoomId={editing.room?.id ?? ""}
             isActive={editing.isActive}
-            onSubmit={async ({ name: n, kamar: k, isActive }) => {
+            rooms={rooms.data ?? []}
+            onSubmit={async ({ name: n, roomId: rid, isActive }) => {
               await update.mutateAsync({
                 membershipId: editing.id,
                 name: n,
-                kamar: k || undefined,
+                roomId: rid || null,
                 isActive,
               });
-              setEditOpen(null);
+              closeModal("modal-member-edit");
               refresh();
               setToast({ message: "Beres nih. Anggota ke-update." });
             }}
@@ -264,24 +282,16 @@ function MembersPage() {
         )}
       </Modal>
 
-      <Modal
-        open={!!temp}
-        onClose={() => setTemp(null)}
-        title="Sandi dibikin, gas!"
-      >
+      <Modal id="modal-member-temp" title="Sandi dibikin, gas!">
         {temp && <ResetCard data={temp} />}
       </Modal>
 
-      <Modal
-        open={!!removeId}
-        onClose={() => setRemoveId(null)}
-        title="Yakin hapus anggota?"
-      >
-        <p className="text-sm text-gray-600">
+      <Modal id="modal-member-remove" title="Yakin hapus anggota?">
+        <p className="text-sm text-muted-foreground">
           Anggota keluar dari rotasi piket. Nggak bisa dibatalkan.
         </p>
         <div className="mt-5 flex justify-end gap-2">
-          <Button kind="ghost" onClick={() => setRemoveId(null)}>
+          <Button kind="ghost" data-hs-overlay="#modal-member-remove">
             Batal
           </Button>
           <Button
@@ -292,7 +302,7 @@ function MembersPage() {
                 { membershipId: removeId },
                 {
                   onSuccess: () => {
-                    setRemoveId(null);
+                    closeModal("modal-member-remove");
                     refresh();
                     setToast({ message: "Anggota udah dihapus." });
                   },
@@ -313,23 +323,25 @@ function MembersPage() {
 
 function EditMemberForm({
   initialName,
-  initialKamar,
+  initialRoomId,
   isActive,
+  rooms,
   onSubmit,
   onError,
 }: {
   initialName: string;
-  initialKamar: string;
+  initialRoomId: string;
   isActive: boolean;
+  rooms: { id: string; name: string }[];
   onSubmit: (v: {
     name: string;
-    kamar: string;
+    roomId: string;
     isActive: boolean;
   }) => Promise<void>;
   onError: (msg: string) => void;
 }) {
   const [name, setName] = useState(initialName);
-  const [kamar, setKamar] = useState(initialKamar);
+  const [roomId, setRoomId] = useState(initialRoomId);
   const [active, setActive] = useState(isActive);
   const [saving, setSaving] = useState(false);
 
@@ -337,7 +349,7 @@ function EditMemberForm({
     e.preventDefault();
     setSaving(true);
     try {
-      await onSubmit({ name, kamar, isActive: active });
+      await onSubmit({ name, roomId, isActive: active });
     } catch (err) {
       onError(errMsg(err, "Gagal menyimpan."));
     } finally {
@@ -356,11 +368,18 @@ function EditMemberForm({
         />
       </Field>
       <Field label="Kamar">
-        <input
+        <select
           className={inputClass}
-          value={kamar}
-          onChange={(e) => setKamar(e.target.value)}
-        />
+          value={roomId}
+          onChange={(e) => setRoomId(e.target.value)}
+        >
+          <option value="">Nggak ada kamar</option>
+          {rooms.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
       </Field>
       <Field label="Status">
         <select
@@ -386,7 +405,7 @@ export default function AnggotaPage() {
     <SuperadminGate>
       <div className="space-y-1">
         {orgName && (
-          <p className="text-brand-700 text-xs font-bold tracking-wide uppercase">
+          <p className="text-primary-700 text-xs font-bold tracking-wide uppercase">
             {orgName}
           </p>
         )}

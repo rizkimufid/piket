@@ -30,15 +30,29 @@ model Org {
   id        String       @id @default(cuid())
   name      String
   members   Membership[]
+  rooms     Room[]
   tasks     Task[]
   setting   OrgSetting?
   createdAt DateTime     @default(now())
 }
 
+model Room {
+  id        String       @id @default(cuid())
+  orgId     String
+  org       Org          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  members   Membership[]
+  createdAt DateTime     @default(now())
+
+  @@unique([orgId, name])
+  @@index([orgId])
+}
+
 model Membership {
   id        String   @id @default(cuid())
   role      Role     @default(MEMBER)
-  kamar     String?
+  roomId    String?
+  room      Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
   isActive  Boolean  @default(true)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String

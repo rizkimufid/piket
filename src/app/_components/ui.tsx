@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  IconAlertTriangle,
+  IconCheck,
+  IconX,
+} from "@tabler/icons-react";
 
 export function errMsg(
   err: unknown,
@@ -46,51 +51,63 @@ export function Toast({ toast }: { toast: ToastState | null }) {
       <span
         aria-hidden="true"
         className={`flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-          toast.kind === "error" ? "bg-white/20" : "bg-brand-500 text-white"
+          toast.kind === "error" ? "bg-white/20" : "bg-primary-500 text-white"
         }`}
       >
-        {toast.kind === "error" ? "!" : "✓"}
+        {toast.kind === "error" ? (
+          <IconAlertTriangle size={14} aria-hidden="true" />
+        ) : (
+          <IconCheck size={14} aria-hidden="true" />
+        )}
       </span>
       <span>{toast.message}</span>
     </div>
   );
 }
 
+import { HSOverlay } from "preline";
+
+export function closeModal(id: string) {
+  HSOverlay.close(`#${id}`);
+}
+
+export function openModal(id: string) {
+  HSOverlay.open(`#${id}`);
+}
+
+/** Re-scan tombol `data-hs-overlay` yang baru masuk DOM secara async. */
+export function refreshOverlays() {
+  HSOverlay.autoInit();
+}
+
 export function Modal({
-  open,
-  onClose,
+  id,
   title,
   children,
 }: {
-  open: boolean;
-  onClose: () => void;
+  id: string;
   title: string;
   children: React.ReactNode;
 }) {
-  if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4"
+      id={id}
       role="dialog"
       aria-modal="true"
       aria-label={title}
+      tabIndex={-1}
+      className="hs-overlay fixed inset-0 z-[80] hidden flex items-end justify-center sm:items-center sm:p-4"
     >
-      <button
-        type="button"
-        aria-label="Tutup"
-        className="absolute inset-0 bg-gray-900/45 backdrop-blur-[2px]"
-        onClick={onClose}
-      />
-      <div className="relative max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:max-w-md sm:rounded-3xl">
+      <div className="hs-overlay-animation-target max-h-[90vh] w-full self-end rounded-t-3xl bg-card p-5 opacity-0 shadow-2xl transition-all duration-200 hs-overlay-open:translate-y-0 hs-overlay-open:opacity-100 sm:max-w-md sm:self-auto sm:rounded-3xl">
         <header className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+          <h2 className="text-lg font-bold text-foreground">{title}</h2>
           <button
             type="button"
-            onClick={onClose}
+            data-hs-overlay={`#${id}`}
             aria-label="Tutup"
-            className="flex size-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition hover:bg-gray-200 hover:text-gray-700"
+            className="bg-muted flex size-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted-hover hover:text-foreground"
           >
-            ✕
+            <IconX size={18} aria-hidden="true" />
           </button>
         </header>
         {children}
@@ -108,16 +125,16 @@ export function Button({
 }) {
   const tones: Record<string, string> = {
     primary:
-      "bg-brand-600 text-white shadow-sm shadow-brand-600/20 hover:bg-brand-700 disabled:opacity-50",
+      "bg-primary-600 text-white shadow-sm shadow-primary-600/20 hover:bg-primary-700 disabled:opacity-50",
     ghost:
-      "border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50",
+      "border border-border bg-card text-foreground hover:border-line-3 hover:bg-muted-hover",
     danger: "bg-red-600 text-white hover:bg-red-700",
-    subtle: "text-brand-700 underline-offset-4 hover:underline",
+    subtle: "text-primary-700 underline-offset-4 hover:underline",
   };
   return (
     <button
       {...props}
-      className={`focus-visible:ring-brand-500 inline-flex shrink-0 items-center justify-center gap-x-2 rounded-xl px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none ${tones[kind]} ${className}`}
+      className={`focus-visible:ring-primary-500 inline-flex shrink-0 items-center justify-center gap-x-2 rounded-xl px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none ${tones[kind]} ${className}`}
     />
   );
 }
@@ -130,8 +147,8 @@ export function Chip({
   children: React.ReactNode;
 }) {
   const tones: Record<string, string> = {
-    brand: "bg-brand-100 text-brand-800",
-    neutral: "bg-gray-100 text-gray-600",
+    brand: "bg-primary-100 text-primary-800",
+    neutral: "bg-muted text-muted-foreground",
     danger: "bg-red-100 text-red-700",
   };
   return (
@@ -154,25 +171,25 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-gray-700">
+      <span className="mb-1.5 block text-sm font-medium text-foreground">
         {label}
       </span>
       {children}
       {hint ? (
-        <span className="mt-1 block text-xs text-gray-400">{hint}</span>
+        <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>
       ) : null}
     </label>
   );
 }
 
 export const inputClass =
-  "w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-800 shadow-sm placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30";
+  "w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30";
 
 export function Spinner({ className = "" }: { className?: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`border-brand-500 inline-block size-6 animate-spin rounded-full border-4 border-t-transparent ${className}`}
+      className={`border-primary-500 inline-block size-6 animate-spin rounded-full border-4 border-t-transparent ${className}`}
     />
   );
 }
@@ -189,11 +206,11 @@ export function PageHeader({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
+        <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
           {title}
         </h1>
         {subtitle ? (
-          <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         ) : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}

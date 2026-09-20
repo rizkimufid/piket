@@ -68,8 +68,8 @@ giliran jaga toko) tanpa menulis ulang inti aplikasi. v1 hanya menerapkan sektor
 1. **Bootstrapping**: user pertama membuka `/register` → buat akun (email + sandi + nama
    + nama org). Sistem membuat `Org` + `Membership(SUPERADMIN)`.
 2. **Daftarkan anggota**: superadmin di menu Kelola → "Tambah Anggota" → isi nama, email,
-   kamar → sistem generate **sandi sementara** → tampilkan sekali supaya diteruskan
-   ke anggota (WhatsApp/diucapkan langsung).
+   kamar (dropdown dari daftar kamar) → sistem generate **sandi sementara** → tampilkan sekali
+   supaya diteruskan ke anggota (WhatsApp/diucapkan langsung).
 3. **Login anggota**: email + sandi sementara → sistem paksa ganti sandi di
    `/ubah-password` sebelum masuk.
 4. **Lihat jadwal**: semua user melihat dashboard "Minggu Ini" + "Minggu Depan".
@@ -90,8 +90,9 @@ giliran jaga toko) tanpa menulis ulang inti aplikasi. v1 hanya menerapkan sektor
 | F-ORG-1 | Multi-org scoping | Semua data (task, anggota, setting) hanya terlihat di org aktif. |
 | F-ORG-2 | Pemilih org | Dropdown ganti org aktif (untuk user yang di >1 org). |
 | F-MEM-1 | Daftar anggota | Nama, kamar, status. |
-| F-MEM-2 | Edit anggota | Ubah nama / kamar. |
+| F-MEM-2 | Edit anggota | Ubah nama / kamar (dropdown). |
 | F-MEM-3 | Hapus/nonaktifkan anggota | Anggota keluar dari rotasi. |
+| F-ROOM-1 | Manajemen kamar | Tambah/rename/hapus kamar; anggota pilih dari daftar. |
 | F-TSK-1 | Daftar task | Urutan display dikontrol superadmin (drag/drop atau tombol naik/turun). |
 | F-TSK-2 | Tambah/hapus task | Nama task (Menyapu, Ngepel, Kamar Mandi, Dapur, Sampah...). |
 | F-JAD-1 | Dashboard minggu ini | Siapa → tugas apa, semua anggota. |
@@ -127,7 +128,7 @@ giliran jaga toko) tanpa menulis ulang inti aplikasi. v1 hanya menerapkan sektor
   Kelola → Tambah Anggota (nama, email, kamar)
    → cek email belum terdaftar
    → hash sandi sementara random (8 karakter)
-   → User created + Membership(org, role MEMBER, kamar)
+   → User created + Membership(org, role MEMBER, roomId)
    → tampilkan sandi sementara SEKALI (toast/modal) untuk diteruskan
 
 [Reset sandi]
@@ -165,15 +166,29 @@ model Org {
   id        String         @id @default(cuid())
   name      String
   members   Membership[]
+  rooms     Room[]
   tasks     Task[]
   setting   OrgSetting?
   createdAt DateTime       @default(now())
 }
 
+model Room {
+  id        String       @id @default(cuid())
+  orgId     String
+  org       Org          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  members   Membership[]
+  createdAt DateTime     @default(now())
+
+  @@unique([orgId, name])
+  @@index([orgId])
+}
+
 model Membership {
   id         String   @id @default(cuid())
   role       Role     @default(MEMBER)
-  kamar      String?
+  roomId     String?
+  room       Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
   isActive   Boolean  @default(true) // ibu rotasi di-skip
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     String
@@ -204,6 +219,9 @@ model OrgSetting {
 
 Catatan desain:
 - **`isActive`** di Membership = penghuni masih nginap; yang non-aktif tidak ikut rotasi.
+- **Kamar = entitas `Room`** (bukan string bebas): daftar kamar dikelola organik di `/kamar`,
+  anggota memilih dari daftar itu. Hapus kamar → `roomId` anggota jadi `null` (anggota tetap
+  ada). Rename kamar otomatis ter-update di semua tampilan.
 - Tidak ada tabel jadwal — jadwal **dihitung** (lihat §8). Tidak ada duplikasi/penyimpangan.
 - Superadmin = `Membership.role = SUPERADMIN` di sebuah org. Global superadmin dihapus;
   skalabilitas role per-org.
@@ -273,8 +291,12 @@ Konvensi: `requireAuth` (harus login) → `withOrg` (scope ke org aktif) →
 | `org` | `setActive` | auth | Ganti org aktif (cookie). |
 | `org` | `regenerateSeed` | superadmin | "Acak ulang". |
 | `org` | `updateName` | superadmin | Ganti nama org. |
-| member | `list` | auth | Anggota org aktif (+status aktif). |
-| member | `update` | superadmin | Nama / kamar / isActive. |
+| member | `list` | auth | Anggota org aktif (+status aktif, kamar). |
+| member | `update` | superadmin | Nama / roomId / isActive. |
+| room | `list` | auth | Kamar org aktif (+jumlah anggota). |
+| room | `create` | superadmin | Tambah kamar (unik per org). |
+| room | `updateName` | superadmin | Ubah nama kamar (unik per org). |
+| room | `remove` | superadmin | Hapus kamar → anggota terlepas (set null). |
 | task | `list` | auth | Task org aktif, diurut `position`. |
 | task | `create` | superadmin | Tambah task. |
 | task | `update` | superadmin | Ubah nama / pindah posisi. |
@@ -311,6 +333,7 @@ Bahasa **Indonesia santai**, gaya brand Gojek: dekat, ringan, sedikit humor, tid
 | `/register` | Bootstrap superadmin (nama, email, sandi, nama org) | publik (kosong) |
 | `/` | Dashboard: sapaan, "Minggu Ini", "Minggu Depan", dropdown org + menu user | auth |
 | `/ubah-password` | Form sandi baru (dipakai saat wajib ganti) | auth |
+| `/kamar` | Manajemen kamar: tambah, ubah nama, hapus (jumlah anggota per kamar) | superadmin |
 | `/kelola` | Tab "Anggota" & "Task", tombol Acak ulang | superadmin |
 
 - Layout: navbar atas khas Preline (logo, pemilih org, avatar menu keluar).
@@ -405,7 +428,7 @@ Status dipelihara live di `docs/PROGRESS.md`. Ringkasan:
 |---|---|
 | Org | Unit: kontrakan / sektor / tim yang punya jadwal piket sendiri. |
 | Task | Item pekerjaan piket (Menyapu, Ngepel, ...). |
-| Membership | Relasi user↔org beserta role dan kamar. |
+| Membership | Relasi user↔org beserta role dan kamar (via Room). |
 | Seed | Angka dasar pengacakan; ganti = "acak ulang". |
 | Period index (W) | Nomor minggu berjalan; dasar rotasi deterministik. |
 | Superadmin | Orang yang mengatur org (single role tulis di v1). |

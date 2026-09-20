@@ -20,8 +20,8 @@ export const userRouter = createTRPCRouter({
           select: {
             id: true,
             role: true,
-            kamar: true,
             isActive: true,
+            room: { select: { id: true, name: true } },
             org: { select: { id: true, name: true } },
           },
         },

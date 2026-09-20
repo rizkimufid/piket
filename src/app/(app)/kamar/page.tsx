@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  IconArrowDown,
-  IconArrowUp,
-  IconBrush,
-  IconPencil,
-  IconTrash,
-} from "@tabler/icons-react";
+import { IconBed, IconPencil, IconTrash } from "@tabler/icons-react";
 
 import {
   SuperadminGate,
@@ -31,14 +25,12 @@ function IconBtn({
   children,
   label,
   onClick,
-  disabled,
   danger,
   ...rest
 }: {
   children: React.ReactNode;
   label: string;
   onClick: () => void;
-  disabled?: boolean;
   danger?: boolean;
   [key: string]: unknown;
 }) {
@@ -48,7 +40,6 @@ function IconBtn({
       aria-label={label}
       title={label}
       onClick={onClick}
-      disabled={disabled}
       {...rest}
       className={`flex size-9 items-center justify-center rounded-xl text-sm transition disabled:opacity-30 ${
         danger
@@ -61,24 +52,30 @@ function IconBtn({
   );
 }
 
-function TasksPage() {
-  const list = api.task.list.useQuery();
-  const create = api.task.create.useMutation();
-  const updateName = api.task.updateName.useMutation();
-  const move = api.task.move.useMutation();
-  const remove = api.task.remove.useMutation();
+function RoomsPage() {
+  const list = api.room.list.useQuery();
+  const create = api.room.create.useMutation();
+  const updateName = api.room.updateName.useMutation();
+  const remove = api.room.remove.useMutation();
   const utils = api.useUtils();
 
   const { toast, setToast } = useToast();
   const [name, setName] = useState("");
-  const [removeId, setRemoveId] = useState<string | null>(null);
+  const [editRoom, setEditRoom] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [removeRoom, setRemoveRoom] = useState<{
+    id: string;
+    name: string;
+    memberCount: number;
+  } | null>(null);
 
   useEffect(() => {
     if (list.data) refreshOverlays();
   }, [list.data]);
 
   function refresh() {
-    void utils.task.list.invalidate();
+    void utils.room.list.invalidate();
+    void utils.member.list.invalidate();
     void utils.schedule.current.invalidate();
   }
 
@@ -89,23 +86,23 @@ function TasksPage() {
       setName("");
       refresh();
     } catch (err) {
-      setToast({ message: errMsg(err, "Gagal nambah task."), kind: "error" });
+      setToast({ message: errMsg(err, "Gagal nambah kamar."), kind: "error" });
     }
   }
 
-  const tasks = list.data ?? [];
+  const rooms = list.data ?? [];
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Task piket"
-        subtitle={`${tasks.length} task · urutan dipakai buat pembagian jadwal`}
+        title="Kamar"
+        subtitle={`${rooms.length} kamar · dipakai buat pengelompokan anggota`}
       />
 
       <form onSubmit={onSubmit} className="flex gap-2">
         <input
           className={inputClass}
-          placeholder="Nama task, mis. Ngepel"
+          placeholder="Nama kamar, mis. 2A"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -118,24 +115,24 @@ function TasksPage() {
         <div className="flex justify-center py-16">
           <Spinner />
         </div>
-      ) : tasks.length === 0 ? (
+      ) : rooms.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-line-3 bg-card p-8 text-center">
           <p
             className="bg-primary-100 mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl text-xl"
             aria-hidden="true"
           >
-            <IconBrush size={26} stroke={1.75} />
+            <IconBed size={26} stroke={1.75} />
           </p>
           <p className="mx-auto max-w-xs text-sm text-muted-foreground">
-            Belum ada task piket. Tambahin dulu, misal: menyapu, ngepel, kamar
-            mandi.
+            Belum ada kamar. Tambahin dulu biar pas isi anggota tinggal milih,
+            misal: 2A, 2B, 3A.
           </p>
         </div>
       ) : (
         <ul className="space-y-2">
-          {tasks.map((t, i) => (
+          {rooms.map((r) => (
             <li
-              key={t.id}
+              key={r.id}
               className="border-border bg-card flex items-center justify-between gap-3 rounded-2xl border px-3 py-3 shadow-sm sm:px-4"
             >
               <span className="flex min-w-0 items-center gap-3">
@@ -143,57 +140,37 @@ function TasksPage() {
                   className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold"
                   aria-hidden="true"
                 >
-                  {i + 1}
+                  {r.name.charAt(0).toUpperCase()}
                 </span>
                 <span className="min-w-0 truncate text-sm font-semibold text-foreground">
-                  {t.name}
+                  {r.name}
+                </span>
+                <span className="text-muted-foreground shrink-0 rounded-full bg-muted/70 px-2 py-0.5 text-xs">
+                  {r._count.members} orang
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-1.5">
                 <IconBtn
-                  label="Naik"
-                  disabled={i === 0}
-                  onClick={() =>
-                    move.mutate({ id: t.id, dir: "up" }, { onSuccess: refresh })
-                  }
-                >
-                  <IconArrowUp size={16} aria-hidden="true" />
-                </IconBtn>
-                <IconBtn
-                  label="Turun"
-                  disabled={i === tasks.length - 1}
-                  onClick={() =>
-                    move.mutate(
-                      { id: t.id, dir: "down" },
-                      { onSuccess: refresh },
-                    )
-                  }
-                >
-                  <IconArrowDown size={16} aria-hidden="true" />
-                </IconBtn>
-                <IconBtn
                   label="Ubah nama"
                   onClick={() => {
-                    const next = window.prompt("Nama task baru:", t.name);
-                    if (next?.trim()) {
-                      updateName.mutate(
-                        { id: t.id, name: next.trim() },
-                        {
-                          onSuccess: refresh,
-                          onError: (e) =>
-                            setToast({ message: e.message, kind: "error" }),
-                        },
-                      );
-                    }
+                    setEditRoom(r.id);
+                    setEditName(r.name);
                   }}
+                  data-hs-overlay="#modal-room-edit"
                 >
                   <IconPencil size={16} aria-hidden="true" />
                 </IconBtn>
                 <IconBtn
                   label="Hapus"
                   danger
-                  onClick={() => setRemoveId(t.id)}
-                  data-hs-overlay="#modal-task-remove"
+                  onClick={() =>
+                    setRemoveRoom({
+                      id: r.id,
+                      name: r.name,
+                      memberCount: r._count.members,
+                    })
+                  }
+                  data-hs-overlay="#modal-room-remove"
                 >
                   <IconTrash size={16} aria-hidden="true" />
                 </IconBtn>
@@ -205,12 +182,64 @@ function TasksPage() {
 
       <Toast toast={toast} />
 
-      <Modal id="modal-task-remove" title="Hapus task ini?">
+      <Modal id="modal-room-edit" title="Ubah nama kamar">
+        <input
+          className={inputClass}
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && editRoom) {
+              updateName.mutate(
+                { id: editRoom, name: editName.trim() },
+                {
+                  onSuccess: () => {
+                    closeModal("modal-room-edit");
+                    refresh();
+                  },
+                  onError: (err) =>
+                    setToast({ message: err.message, kind: "error" }),
+                },
+              );
+            }
+          }}
+        />
+        <div className="mt-5 flex justify-end gap-2">
+          <Button kind="ghost" data-hs-overlay="#modal-room-edit">
+            Batal
+          </Button>
+          <Button
+            disabled={
+              updateName.isPending ||
+              !editName.trim() ||
+              editName.trim() === (list.data?.find((r) => r.id === editRoom)?.name ?? "")
+            }
+            onClick={() =>
+              updateName.mutate(
+                { id: editRoom!, name: editName.trim() },
+                {
+                  onSuccess: () => {
+                    closeModal("modal-room-edit");
+                    refresh();
+                  },
+                  onError: (err) =>
+                    setToast({ message: err.message, kind: "error" }),
+                },
+              )
+            }
+          >
+            Simpan
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal id="modal-room-remove" title={`Hapus kamar ${removeRoom?.name ?? ""}?`}>
         <p className="text-sm text-muted-foreground">
-          Task bakal hilang dari daftar piket.
+          {removeRoom && removeRoom.memberCount > 0
+            ? `${removeRoom.memberCount} orang di kamar ini bakal lepas kamarnya (anggota tetap ada).`
+            : "Kamar bakal hilang dari daftar."}
         </p>
         <div className="mt-5 flex justify-end gap-2">
-          <Button kind="ghost" data-hs-overlay="#modal-task-remove">
+          <Button kind="ghost" data-hs-overlay="#modal-room-remove">
             Batal
           </Button>
           <Button
@@ -218,10 +247,10 @@ function TasksPage() {
             disabled={remove.isPending}
             onClick={() =>
               remove.mutate(
-                { id: removeId! },
+                { id: removeRoom!.id },
                 {
                   onSuccess: () => {
-                    closeModal("modal-task-remove");
+                    closeModal("modal-room-remove");
                     refresh();
                   },
                   onError: (err) =>
@@ -238,7 +267,7 @@ function TasksPage() {
   );
 }
 
-export default function TaskPage() {
+export default function KamarPage() {
   const { orgName } = useSuperadmin();
 
   return (
@@ -249,7 +278,7 @@ export default function TaskPage() {
             {orgName}
           </p>
         )}
-        <TasksPage />
+        <RoomsPage />
       </div>
     </SuperadminGate>
   );
