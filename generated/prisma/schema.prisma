@@ -1,0 +1,68 @@
+// Skema mengikat — lihat docs/PRD.md §6
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPERADMIN
+  MEMBER
+}
+
+model User {
+  id                 String       @id @default(cuid())
+  email              String       @unique
+  name               String
+  passwordHash       String
+  mustChangePassword Boolean      @default(false)
+  memberships        Membership[]
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+model Org {
+  id        String       @id @default(cuid())
+  name      String
+  members   Membership[]
+  tasks     Task[]
+  setting   OrgSetting?
+  createdAt DateTime     @default(now())
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  role      Role     @default(MEMBER)
+  kamar     String?
+  isActive  Boolean  @default(true)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId     String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, orgId])
+  @@index([orgId])
+}
+
+model Task {
+  id       String @id @default(cuid())
+  orgId    String
+  org      Org    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name     String
+  position Int    @default(0)
+
+  @@index([orgId, position])
+}
+
+model OrgSetting {
+  orgId    String @id
+  org      Org    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  seed     Int    @default(0)
+  rotation String @default("weekly")
+}

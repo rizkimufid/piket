@@ -1,0 +1,53 @@
+# Stack dev Piket: Postgres + aplikasi Next.js, jalan berdua lewat Docker.
+# Tanpa perlu install Node/npm/npx di mesin — cukup Docker Desktop lalu:
+#
+#   docker compose up --build
+#
+# Buka http://localhost:3000
+# Postgres: localhost:5432, user/pass/db = piket
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_INITDB_ARGS: "--locale=C -E UTF-8"
+      POSTGRES_USER: piket
+      POSTGRES_PASSWORD: piket
+      POSTGRES_DB: piket
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U piket -d piket"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://piket:piket@db:5432/piket
+      AUTH_SECRET: dev-secret-ganti-di-prod
+      AUTH_URL: http://localhost:3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+    working_dir: /app
+    command: >
+      sh -c "
+      if [ ! -d prisma/migrations ]; then
+        PRISMA_HIDE_UPDATE_MESSAGE=1 npx prisma migrate dev --name init --skip-seed;
+      fi;
+      npm run dev
+      "
+
+volumes:
+  pgdata:
